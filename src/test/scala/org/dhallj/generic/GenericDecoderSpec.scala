@@ -24,6 +24,9 @@ class GenericDecoderSpec extends munit.FunSuite {
         |    endpoint = {
         |      scheme = "https",
         |      host = "some.host2",
+        |      -- Optionals are handled in non-consistent way currently:
+        |      -- 1. To construct None you need to either omit field or set it to None explicitly
+        |      -- 2. To construct Some you need to explicitly call Some
         |      path = Some "/",
         |      port = 8080
         |    }
@@ -33,7 +36,6 @@ class GenericDecoderSpec extends munit.FunSuite {
 
     import GenericDecoder._
     val parsed = input.parseExpr.getOr("Parsing failed").normalize()
-    println(s"parsed: $parsed")
     val decoded = parsed.as[AppConfig].getOr("Decoding failed")
     val expected = AppConfig(
       db = DbConfig(host = "host.com", port = 5432),
