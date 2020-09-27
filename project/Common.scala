@@ -1,7 +1,7 @@
 import com.softwaremill.SbtSoftwareMillCommon.autoImport.commonSmlBuildSettings
 import org.scalafmt.sbt.ScalafmtPlugin.autoImport.scalafmtOnCompile
-import sbt.Keys.{name, organization, scalaVersion, version}
-import sbt.Project
+import sbt.Keys.{name, organization, scalaVersion, testFrameworks, version}
+import sbt.{Project, TestFramework}
 
 object Common {
   implicit class ProjectFrom(project: Project) {
@@ -13,7 +13,8 @@ object Common {
       scalaVersion := "2.13.3",
       scalafmtOnCompile := true,
 
-      commonSmlBuildSettings
+      commonSmlBuildSettings,
+      testFrameworks += new TestFramework("munit.Framework")
     )
   }
 }
