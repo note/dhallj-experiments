@@ -57,7 +57,7 @@ class GenericDecoderSpec extends munit.FunSuite {
     val input =
       """
         |let Error = < Error1 : { msg : Text } | Error2 : { code : Natural, code2 : Natural } >
-        |in { errors = [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123 , code2 = 456 }] }
+        |in { errors = [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123 }] }
         |""".stripMargin
 
     val parsed = input.parseExpr.getOr("Parsing failed").normalize()

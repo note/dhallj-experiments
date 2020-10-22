@@ -12,7 +12,7 @@ import cats.instances.either._
 
 final case class MissingRecordField(override val target: String, missingFieldName: String, override val value: Expr)
     extends DecodingFailure(target, value) {
-  override def toString: String = s"Missing fieldName: $missingFieldName"
+  override def toString: String = s"Missing record field '$missingFieldName' when decoding $target"
 }
 
 object GenericDecoder {
