@@ -2,7 +2,8 @@ package org.dhallj.generic
 
 import magnolia.{CaseClass, Magnolia, SealedTrait}
 import cats.Traverse
-import org.dhallj.ast.RecordLiteral
+import cats.implicits.catsSyntaxEitherId
+import org.dhallj.ast._
 import org.dhallj.codec.{Decoder, DecodingFailure}
 import org.dhallj.core.Expr
 import org.dhallj.codec.Decoder.Result
@@ -10,7 +11,9 @@ import cats.instances.list._
 import cats.instances.either._
 
 final case class MissingRecordField(override val target: String, missingFieldName: String, override val value: Expr)
-    extends DecodingFailure(target, value)
+    extends DecodingFailure(target, value) {
+  override def toString: String = s"Missing fieldName: $missingFieldName"
+}
 
 object GenericDecoder {
   type Typeclass[T] = Decoder[T]
@@ -43,7 +46,23 @@ object GenericDecoder {
   }
 
   def dispatch[T](sealedTrait: SealedTrait[Decoder, T]): Decoder[T] = new Decoder[T] {
-    override def decode(expr: Expr): Result[T] = ???
+
+    private def decodeAs(expr: Expr, subtypeName: String) =
+      sealedTrait.subtypes.find(_.typeName.short == subtypeName) match {
+        case Some(subtype) =>
+          subtype.typeclass.decode(expr)
+        case None =>
+          new DecodingFailure(s"$subtypeName is not a known subtype of ${sealedTrait.typeName.full}", expr).asLeft
+      }
+
+    override def decode(expr: Expr): Result[T] = expr match {
+      case Application(FieldAccess(UnionType(_), t), arg) =>
+        decodeAs(arg, t)
+      case FieldAccess(UnionType(_), t) =>
+        decodeAs(expr, t)
+      case _ =>
+        new DecodingFailure("Is not a union", expr).asLeft
+    }
 
     override def isValidType(typeExpr: Expr): Boolean = ???
 

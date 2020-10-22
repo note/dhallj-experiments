@@ -1,8 +1,10 @@
 package org.dhallj.generic
 
 import org.dhallj.codec.syntax._
-import org.dhallj.generic.example.{ApiConfig, AppConfig, DbConfig, EndpointConfig}
+import org.dhallj.generic.example.{Abc, Abcs, ApiConfig, AppConfig, DbConfig, EndpointConfig, Error1, Error2, Errors}
 import org.dhallj.syntax._
+import GenericDecoder._
+import org.dhallj.codec.Decoder
 
 class GenericDecoderSpec extends munit.FunSuite {
   test("Load nested case classes") {
@@ -34,8 +36,7 @@ class GenericDecoderSpec extends munit.FunSuite {
         |}
         |""".stripMargin
 
-    import GenericDecoder._
-    val parsed = input.parseExpr.getOr("Parsing failed").normalize()
+    val parsed  = input.parseExpr.getOr("Parsing failed").normalize()
     val decoded = parsed.as[AppConfig].getOr("Decoding failed")
     val expected = AppConfig(
       db = DbConfig(host = "host.com", port = 5432),
@@ -49,6 +50,40 @@ class GenericDecoderSpec extends munit.FunSuite {
         )),
     )
 
+    assertEquals(decoded, expected)
+  }
+
+  test("Load sealed trait") {
+    val input =
+      """
+        |let Error = < Error1 : { msg : Text } | Error2 : { code : Natural, code2 : Natural } >
+        |in { errors = [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123 , code2 = 456 }] }
+        |""".stripMargin
+
+    val parsed = input.parseExpr.getOr("Parsing failed").normalize()
+
+    val decoded  = parsed.as[Errors].getOr("Decoding failed")
+    val expected = Errors(List(Error1("abc"), Error2(code = 123, code2 = 456)))
+    assertEquals(decoded, expected)
+  }
+
+  test("Load sealed trait 2") {
+    val input =
+      """
+        |let Error = < Error1 : { msg : Text } | Error2 : { code : Natural, code2 : Natural } >
+        |in { errors = [{ msg = "abc"}, { code = 123 , code2 = 456 }] }
+        |""".stripMargin
+
+    //    val input =
+    //      """
+    //        |let Error = < Error1 { msg : Text } | Error2 { code : Natural, code2 : Natural } >
+    //        |in [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123 , code2 = 456 }]
+    //        |""".stripMargin
+
+    val parsed = input.parseExpr.getOr("Parsing failed").normalize()
+
+    val decoded  = parsed.as[Errors].getOr("Decoding failed")
+    val expected = Errors(List(Error1("abc"), Error2(code = 123, code2 = 456)))
     assertEquals(decoded, expected)
   }
 
