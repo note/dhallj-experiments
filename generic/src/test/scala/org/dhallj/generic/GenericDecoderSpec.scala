@@ -1,10 +1,11 @@
 package org.dhallj.generic
 
 import org.dhallj.codec.syntax._
-import org.dhallj.generic.example.{Abc, Abcs, ApiConfig, AppConfig, DbConfig, EndpointConfig, Error1, Error2, Errors}
+import org.dhallj.generic.example._
 import org.dhallj.syntax._
 import GenericDecoder._
-import org.dhallj.codec.Decoder
+import org.dhallj.codec.DecodingFailure
+import org.dhallj.generic.example.akka.{Akka, Http, OnOrOff, Preview, Server}
 
 class GenericDecoderSpec extends munit.FunSuite {
   test("Load nested case classes") {
@@ -57,7 +58,7 @@ class GenericDecoderSpec extends munit.FunSuite {
     val input =
       """
         |let Error = < Error1 : { msg : Text } | Error2 : { code : Natural, code2 : Natural } >
-        |in { errors = [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123 }] }
+        |in { errors = [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123, code2 = 456 }] }
         |""".stripMargin
 
     val parsed = input.parseExpr.getOr("Parsing failed").normalize()
@@ -67,23 +68,52 @@ class GenericDecoderSpec extends munit.FunSuite {
     assertEquals(decoded, expected)
   }
 
-  test("Load sealed trait 2") {
+  test("Load union without parameters") {
     val input =
       """
-        |let Error = < Error1 : { msg : Text } | Error2 : { code : Natural, code2 : Natural } >
-        |in { errors = [{ msg = "abc"}, { code = 123 , code2 = 456 }] }
+        |let OnOrOff = < On: {} | Off: {} >
+        |in { http = { server = { preview = { enableHttp2 = OnOrOff.Off } } } }
         |""".stripMargin
-
-    //    val input =
-    //      """
-    //        |let Error = < Error1 { msg : Text } | Error2 { code : Natural, code2 : Natural } >
-    //        |in [Error.Error1 { msg = "abc"}, Error.Error2 { code = 123 , code2 = 456 }]
-    //        |""".stripMargin
 
     val parsed = input.parseExpr.getOr("Parsing failed").normalize()
 
-    val decoded  = parsed.as[Errors].getOr("Decoding failed")
-    val expected = Errors(List(Error1("abc"), Error2(code = 123, code2 = 456)))
+    val decoded = parsed.as[Akka].getOr("Decoding failed")
+
+    val expected = Akka(Http(Server(Preview(OnOrOff.Off))))
+
+    assertEquals(decoded, expected)
+  }
+
+  test("Load union without parameters 2") {
+    val input =
+      """
+        |let OnOrOff = < On | Off >
+        |in OnOrOff.Off
+        |""".stripMargin
+
+    val parsed = input.parseExpr.getOr("Parsing failed").normalize()
+
+    val decoded = parsed.as[OnOrOff].getOr("Decoding failed")
+
+    assertEquals(decoded, OnOrOff.Off)
+  }
+
+  test("Decoding error should be comprehensible for deeply nested case classes") {
+    val input =
+      """
+        |let OnOrOff = < On: {} | Off: {} >
+        |in { http = { server = { preview = { enableHttp = OnOrOff.Off } } } }
+        |""".stripMargin
+
+    val parsed = input.parseExpr.getOr("Parsing failed").normalize()
+
+    val decoded = parsed.as[Akka]
+
+    println(s"decoded: $decoded")
+    val expectedMsg = "Missing field http.server.preview.[enableHttp2] when decoding org.dhallj.generic.example.akka.Preview"
+
+    val expected = Left(new DecodingFailure("", null))
+
     assertEquals(decoded, expected)
   }
 

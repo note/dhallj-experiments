@@ -2,12 +2,35 @@ package pl.msitko
 
 import org.dhallj.core.Expr
 
-import scala.meta._
+import scala.meta.{Pkg, _}
 import org.dhallj.ast.{RecordLiteral, RecordType}
+
+import scala.meta.internal.semanticdb.Scala.Names.TermName
 
 object DhallToScalaGenerator {
 
-  def generate(dhallExpr: Expr): Seq[Defn.Class] = ???
+  // take dhall type and generate scala
+  // implement as ExternalVisitor?
+  def generate(dhallExpr: Expr, pkg: Option[Term.Ref]): Seq[Defn.Class] = ???
+
+  def generate(dhallExpr: Expr, pkg: List[String]): Seq[Defn.Class] =
+    generate(dhallExpr, toTermSelect(pkg))
+
+  def generate(dhallExpr: Expr, pkg: String): Seq[Defn.Class] = generate(dhallExpr, pkg.split('.').toList)
+
+  def generate(dhallExpr: Expr): Seq[Defn.Class] =
+    generate(dhallExpr, List.empty)
+
+  private def toTermSelect(packageComponents: List[String]): Option[Term.Ref] =
+    if (packageComponents.nonEmpty) {
+      Some(
+        packageComponents.tail.foldLeft(Term.Name(packageComponents.head): Term.Ref) { (acc, curr) =>
+          Term.Select(acc, Term.Name(curr))
+        }
+      )
+    } else {
+      None
+    }
 
 //  {
 //    // format: off

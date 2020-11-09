@@ -20,23 +20,32 @@ object GenericDecoder {
 
   def combine[T](caseClass: CaseClass[Decoder, T]): Decoder[T] = new Decoder[T] {
 
+    private def decodeAs(expr: Expr, recordMap: Map[String, Expr]) =
+      Traverse[List]
+        .traverse(caseClass.parameters.toList) { param =>
+          //            println(s"bazinga recordMap for ${caseClass.typeName.short}: ${recordMap}")
+          recordMap.get(param.label) match {
+            case Some(expr) =>
+              param.typeclass.decode(expr)
+            case None =>
+              param.default match {
+                case Some(default) => Right(default)
+                case None =>
+                  Left(MissingRecordField(caseClass.typeName.full, param.label, expr))
+              }
+          }
+        }
+        .map(ps => caseClass.rawConstruct(ps))
+
     override def decode(expr: Expr): Result[T] = expr match {
       case RecordLiteral(recordMap) =>
-        Traverse[List]
-          .traverse(caseClass.parameters.toList) { param =>
-            recordMap.get(param.label) match {
-              case Some(expr) =>
-                param.typeclass.decode(expr)
-              case None =>
-                param.default match {
-                  case Some(default) => Right(default)
-                  case None          => Left(MissingRecordField(caseClass.typeName.full, param.label, expr))
-                }
-            }
-          }
-          .map(ps => caseClass.rawConstruct(ps))
+        decodeAs(expr, recordMap)
+
+      case FieldAccess(UnionType(_), _) =>
+        decodeAs(expr, Map.empty)
 
       case other =>
+        println(s"bazinga: ${caseClass.typeName.short}")
         Left(new DecodingFailure(caseClass.typeName.full, other))
     }
 
